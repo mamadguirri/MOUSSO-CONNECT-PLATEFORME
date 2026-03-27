@@ -21,6 +21,7 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [devOtp, setDevOtp] = useState("");
 
   const handleRequestOtp = async () => {
     if (phone.length !== 8) {
@@ -30,7 +31,8 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     setError("");
     try {
-      await apiPost("/auth/request-reset", { phone: `+223${phone}` });
+      const data = await apiPost<any>("/auth/request-reset", { phone: `+223${phone}` });
+      if (data?.devOtp) setDevOtp(data.devOtp);
       setStep("otp");
     } catch (e: any) {
       setError(e.message);
@@ -99,6 +101,12 @@ export default function ForgotPasswordPage() {
         ) : (
           <div className="space-y-4">
             <p className="text-center text-sm text-gray-500">Code envoyé au +223 {phone}</p>
+            {devOtp && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-btn text-center text-sm">
+                <p className="font-medium">Mode développement</p>
+                <p>Votre code OTP : <span className="font-bold text-lg">{devOtp}</span></p>
+              </div>
+            )}
             <OtpInput value={otp} onChange={setOtp} />
 
             <div>

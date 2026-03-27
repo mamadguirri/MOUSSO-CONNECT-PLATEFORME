@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 
 import { prisma } from '../lib/prisma';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../lib/jwt';
-import { sendOtpSms } from '../services/sms';
+import { sendOtpSms, getLastOtp } from '../services/sms';
 import { AuthRequest } from '../middlewares/auth';
 
 const phoneSchema = z.object({
@@ -199,7 +199,13 @@ export async function requestPasswordReset(req: Request, res: Response) {
 
     await sendOtpSms(phone, code);
 
-    res.json({ success: true, data: { expiresIn: 300 } });
+    const responseData: Record<string, unknown> = { expiresIn: 300 };
+    // En dev, renvoyer le code OTP directement dans la réponse
+    if (process.env.NODE_ENV !== 'production') {
+      responseData.devOtp = getLastOtp();
+    }
+
+    res.json({ success: true, data: responseData });
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({

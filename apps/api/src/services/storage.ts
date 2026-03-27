@@ -1,5 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 const s3 = new S3Client({
   region: 'auto',
@@ -17,16 +19,31 @@ const s3 = new S3Client({
 const BUCKET = process.env.R2_BUCKET_NAME || 'musso-connect';
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || '';
 
-export async function uploadFile(buffer: Buffer, mimetype: string, folder: string): Promise<string> {
-  const ext = mimetype.split('/')[1] === 'jpeg' ? 'jpg' : mimetype.split('/')[1];
-  const key = `${folder}/${randomUUID()}.${ext}`;
+// Dossier local pour stocker les uploads en dev
+const LOCAL_UPLOAD_DIR = path.resolve(__dirname, '..', '..', '..', '..', 'apps', 'web', 'public', 'uploads');
 
-  // En dev sans R2 configuré, retourner une URL placeholder
+function ensureUploadDir(folder: string) {
+  const dir = path.join(LOCAL_UPLOAD_DIR, folder);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+export async function uploadFile(buffer: Buffer, mimetype: string, folder: string): Promise<string> {
+  const ext = mimetype.split('/')[1] === 'jpeg' ? 'jpg' : (mimetype.split('/')[1] || 'png');
+  const filename = `${randomUUID()}.${ext}`;
+
+  // En dev sans R2 configuré, sauvegarder sur le disque local
   if (!process.env.R2_ACCOUNT_ID) {
-    console.log(`[DEV] Upload simulé: ${key}`);
-    return `/uploads/${key}`;
+    const dir = ensureUploadDir(folder);
+    const filePath = path.join(dir, filename);
+    fs.writeFileSync(filePath, buffer);
+    console.log(`[DEV] Photo sauvegardée: /uploads/${folder}/${filename}`);
+    return `/uploads/${folder}/${filename}`;
   }
 
+  const key = `${folder}/${filename}`;
   await s3.send(new PutObjectCommand({
     Bucket: BUCKET,
     Key: key,
@@ -39,7 +56,16 @@ export async function uploadFile(buffer: Buffer, mimetype: string, folder: strin
 
 export async function deleteFile(url: string): Promise<void> {
   if (!process.env.R2_ACCOUNT_ID) {
-    console.log(`[DEV] Suppression simulée: ${url}`);
+    // Supprimer le fichier local
+    const localPath = path.join(LOCAL_UPLOAD_DIR, '..', url);
+    try {
+      if (fs.existsSync(localPath)) {
+        fs.unlinkSync(localPath);
+        console.log(`[DEV] Photo supprimée: ${url}`);
+      }
+    } catch {
+      // Ignorer les erreurs de suppression en dev
+    }
     return;
   }
 

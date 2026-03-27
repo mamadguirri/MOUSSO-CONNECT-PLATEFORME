@@ -1,6 +1,16 @@
+// En dev, stocker le dernier OTP pour l'afficher dans la réponse API
+let lastOtpCode: string | null = null;
+
+export function getLastOtp(): string | null {
+  return lastOtpCode;
+}
+
 export async function sendOtpSms(phone: string, code: string): Promise<void> {
   if (process.env.NODE_ENV !== 'production' || !process.env.TWILIO_ACCOUNT_SID) {
-    console.log(`[DEV] OTP pour ${phone}: ${code}`);
+    lastOtpCode = code;
+    console.log(`\n========================================`);
+    console.log(`  CODE OTP pour ${phone}: ${code}`);
+    console.log(`========================================\n`);
     return;
   }
 
