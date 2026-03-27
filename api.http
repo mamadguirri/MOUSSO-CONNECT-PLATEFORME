@@ -1,0 +1,68 @@
+### Health Check
+GET http://localhost:4000/api/health
+
+### Envoyer OTP
+POST http://localhost:4000/api/v1/auth/send-otp
+Content-Type: application/json
+
+{
+  "phone": "+22370000001"
+}
+
+### Vérifier OTP (remplacer le code par celui affiché dans la console)
+POST http://localhost:4000/api/v1/auth/verify-otp
+Content-Type: application/json
+
+{
+  "phone": "+22370000001",
+  "code": "123456",
+  "name": "Test User"
+}
+
+### Refresh Token (remplacer par votre refresh token)
+POST http://localhost:4000/api/v1/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "VOTRE_REFRESH_TOKEN"
+}
+
+### Lister catégories
+GET http://localhost:4000/api/v1/categories
+
+### Lister quartiers
+GET http://localhost:4000/api/v1/quartiers
+
+### Lister prestataires (publique)
+GET http://localhost:4000/api/v1/providers?limit=10
+
+### Lister prestataires par catégorie
+GET http://localhost:4000/api/v1/providers?categorySlug=coiffure
+
+### Détail prestataire (remplacer ID)
+GET http://localhost:4000/api/v1/providers/PROVIDER_ID
+
+### Mon profil (requiert auth)
+GET http://localhost:4000/api/v1/users/me
+Authorization: Bearer VOTRE_ACCESS_TOKEN
+
+### Admin - Statistiques
+GET http://localhost:4000/api/v1/admin/stats
+Authorization: Bearer ADMIN_ACCESS_TOKEN
+
+### Admin - Liste prestataires
+GET http://localhost:4000/api/v1/admin/providers?status=pending
+Authorization: Bearer ADMIN_ACCESS_TOKEN
+
+### Admin - Vérifier prestataire
+PATCH http://localhost:4000/api/v1/admin/providers/PROVIDER_ID/verify
+Authorization: Bearer ADMIN_ACCESS_TOKEN
+
+### Admin - Suspendre prestataire
+PATCH http://localhost:4000/api/v1/admin/providers/PROVIDER_ID/suspend
+Authorization: Bearer ADMIN_ACCESS_TOKEN
+Content-Type: application/json
+
+{
+  "suspended": true
+}

@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(uuid())
+  phone        String         @unique
+  passwordHash String?
+  name         String
+  role         Role           @default(CLIENT)
+  accountType  AccountType    @default(FREE)
+  quartierId   String?
+  quartier     Quartier?      @relation(fields: [quartierId], references: [id])
+  isActive     Boolean        @default(true)
+  deletedAt    DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  provider     Provider?
+  tokens       RefreshToken[]
+  bookings     Booking[]      @relation("ClientBookings")
+}
+
+enum Role {
+  CLIENT
+  PROVIDER
+  ADMIN
+}
+
+enum AccountType {
+  FREE
+  PROVIDER
+}
+
+model Provider {
+  id             String            @id @default(uuid())
+  userId         String            @unique
+  user           User              @relation(fields: [userId], references: [id])
+  bio            String?
+  avatarUrl      String?
+  whatsappNumber String
+  isVerified     Boolean           @default(false)
+  isSuspended    Boolean           @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  services       ProviderService[]
+  bookings       Booking[]
+}
+
+model Category {
+  id        String             @id @default(uuid())
+  name      String
+  slug      String             @unique
+  iconName  String
+  isActive  Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  services  ProviderService[]
+}
+
+model ProviderService {
+  id          String   @id @default(uuid())
+  providerId  String
+  categoryId  String
+  description String?
+  priceRange  String?
+  provider    Provider @relation(fields: [providerId], references: [id])
+  category    Category @relation(fields: [categoryId], references: [id])
+  photos      ServicePhoto[]
+  bookings    Booking[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([providerId, categoryId])
+}
+
+model ServicePhoto {
+  id        String          @id @default(uuid())
+  serviceId String
+  url       String
+  order     Int             @default(0)
+  service   ProviderService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+}
+
+model Photo {
+  id         String   @id @default(uuid())
+  providerId String
+  url        String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+model Quartier {
+  id     String @id @default(uuid())
+  name   String
+  ville  String @default("Bamako")
+  region String @default("Bamako")
+  users  User[]
+}
+
+model OtpSession {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  purpose   OtpPurpose @default(LOGIN)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+enum OtpPurpose {
+  LOGIN
+  RESET_PASSWORD
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Booking {
+  id              String          @id @default(uuid())
+  clientId        String
+  providerId      String
+  serviceId       String
+  client          User            @relation("ClientBookings", fields: [clientId], references: [id])
+  provider        Provider        @relation(fields: [providerId], references: [id])
+  service         ProviderService @relation(fields: [serviceId], references: [id])
+  status          BookingStatus   @default(PENDING)
+  requestedDate   DateTime
+  requestedTime   String
+  note            String?
+  clientPhone     String
+  rejectionReason String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}

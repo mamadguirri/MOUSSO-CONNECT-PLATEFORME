@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pandoc \"D:\\\\users\\\\Downloads\\\\Musso_Connect__MVP.docx\" -o /tmp/musso_spec.md)",
+      "Read(//tmp/**)",
+      "Bash(python \"C:/Users/mamad/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/dc6115e6-315d-4fb2-8c15-f38cf714c66c/a6216b0f-a25a-4d11-91cf-760451aa929e/skills/docx/scripts/office/unpack.py\" \"D:/users/Downloads/Musso_Connect__MVP.docx\" \"/tmp/musso_unpacked/\")",
+      "Bash(pip install:*)",
+      "Bash(python -c \":*)",
+      "Bash(npx create-next-app@14 . --typescript --tailwind --eslint --app --src-dir --no-import-alias --use-npm)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest init -d --style default --base-color neutral --css-variables)",
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(npx shadcn@latest add input select badge card dialog sheet skeleton separator dropdown-menu table avatar textarea label -y)",
+      "Bash(npx prisma:*)",
+      "Bash(npx next:*)",
+      "Bash(ls \"D:/users/Documents/MOUSSO_CONNECT_PLATEFORME/apps/web/postcss.config.\"*)",
+      "Bash(npm uninstall:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker compose:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(git init:*)",
+      "Bash(gh auth:*)",
+      "Bash(where gh:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote:*)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"oui\" npx prisma db push --force-reset)",
+      "Bash(taskkill /f /im node.exe)",
+      "Bash(taskkill //f //im node.exe)",
+      "Bash(git config:*)"
+    ]
+  }
+}
