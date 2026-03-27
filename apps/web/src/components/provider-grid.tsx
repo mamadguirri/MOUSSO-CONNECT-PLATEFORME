@@ -10,6 +10,7 @@ interface Provider {
   quartierName: string | null;
   categories: { name: string; slug: string; iconName: string }[];
   bio: string | null;
+  isVerified?: boolean;
 }
 
 interface ProviderGridProps {

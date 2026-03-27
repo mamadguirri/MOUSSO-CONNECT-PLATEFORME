@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MapPin, Calendar, Clock } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Clock, CheckCircle, Phone, Star } from "lucide-react";
 
 import { apiGet, apiPost } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -105,17 +105,34 @@ export default function ProviderPage() {
 
         {/* Profil */}
         <div className="text-center mb-6">
-          <div className="w-24 h-24 rounded-full bg-musso-pink-light flex items-center justify-center overflow-hidden mx-auto mb-3">
-            {provider.avatarUrl ? (
-              <img src={provider.avatarUrl} alt={provider.name} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-musso-pink text-3xl font-bold">{provider.name[0]}</span>
+          <div className="relative inline-block">
+            <div className="w-24 h-24 rounded-full bg-musso-pink-light flex items-center justify-center overflow-hidden mx-auto mb-3">
+              {provider.avatarUrl ? (
+                <img src={provider.avatarUrl} alt={provider.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-musso-pink text-3xl font-bold">{provider.name[0]}</span>
+              )}
+            </div>
+            {provider.isVerified && (
+              <div className="absolute bottom-2 right-0 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-sm">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+              </div>
             )}
           </div>
           <h1 className="font-heading font-bold text-2xl">{provider.name}</h1>
+          {provider.isVerified && (
+            <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full mt-1">
+              <CheckCircle className="w-3 h-3" /> Profil vérifié
+            </span>
+          )}
           {provider.quartierName && (
             <p className="text-gray-500 flex items-center justify-center gap-1 mt-1">
               <MapPin className="w-4 h-4" /> {provider.quartierName}, Bamako
+            </p>
+          )}
+          {provider.services && provider.services.length > 0 && (
+            <p className="text-sm text-gray-400 mt-1">
+              {provider.services.length} service{provider.services.length > 1 ? "s" : ""} proposé{provider.services.length > 1 ? "s" : ""}
             </p>
           )}
         </div>
@@ -165,14 +182,14 @@ export default function ProviderPage() {
             <h2 className="font-heading font-semibold text-lg mb-3">Services proposés</h2>
             <div className="space-y-4">
               {provider.services.map((service: any) => (
-                <div key={service.id} className="bg-white rounded-card shadow-sm p-4">
+                <div key={service.id} className="bg-white rounded-card shadow-sm p-4 border border-gray-100">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-musso-pink-light text-musso-pink">{service.categoryName}</Badge>
-                      {service.priceRange && (
-                        <span className="text-sm text-gray-500">{service.priceRange}</span>
-                      )}
-                    </div>
+                    <Badge className="bg-musso-pink-light text-musso-pink">{service.categoryName}</Badge>
+                    {service.priceRange && (
+                      <span className="text-sm font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                        {service.priceRange} FCFA
+                      </span>
+                    )}
                   </div>
                   {service.description && (
                     <p className="text-sm text-gray-600 mb-3">{service.description}</p>
@@ -180,6 +197,16 @@ export default function ProviderPage() {
                   {service.photos && service.photos.length > 0 && (
                     <PhotoGallery photos={service.photos} />
                   )}
+                  <button
+                    onClick={() => {
+                      if (!user) { router.push("/auth/login"); return; }
+                      setActiveService(service.id);
+                      setShowBooking(true);
+                    }}
+                    className="mt-3 w-full h-9 bg-musso-pink/10 text-musso-pink text-sm font-medium rounded-btn hover:bg-musso-pink/20 flex items-center justify-center gap-1.5"
+                  >
+                    <Calendar className="w-3.5 h-3.5" /> Réserver ce service
+                  </button>
                 </div>
               ))}
             </div>
