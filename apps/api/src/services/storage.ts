@@ -30,8 +30,27 @@ function ensureUploadDir(folder: string) {
   return dir;
 }
 
+function getExtension(mimetype: string): string {
+  const map: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'audio/webm': 'webm',
+    'audio/ogg': 'ogg',
+    'audio/mp4': 'm4a',
+    'audio/mpeg': 'mp3',
+    'audio/wav': 'wav',
+    'application/pdf': 'pdf',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  };
+  return map[mimetype] || mimetype.split('/')[1] || 'bin';
+}
+
 export async function uploadFile(buffer: Buffer, mimetype: string, folder: string): Promise<string> {
-  const ext = mimetype.split('/')[1] === 'jpeg' ? 'jpg' : (mimetype.split('/')[1] || 'png');
+  const ext = getExtension(mimetype);
   const filename = `${randomUUID()}.${ext}`;
 
   // En dev sans R2 configuré, sauvegarder sur le disque local
