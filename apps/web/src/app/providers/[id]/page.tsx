@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MapPin, Calendar, Clock, CheckCircle, Phone, Star } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Clock, CheckCircle, Phone, Star, MessageCircle } from "lucide-react";
 
 import { apiGet, apiPost } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -138,13 +138,27 @@ export default function ProviderPage() {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-2 mb-6">
           <WhatsAppButton
             phone={provider.whatsappNumber}
             providerName={provider.name}
             category={provider.categories?.[0]?.name}
-            className="flex-1"
+            className="h-12"
           />
+          <button
+            onClick={async () => {
+              if (!user) { router.push("/auth/login"); return; }
+              try {
+                const data = await apiPost<{ conversationId: string }>("/messages/conversations", { providerId: id });
+                router.push(`/messages/${data.conversationId}`);
+              } catch (e: any) {
+                setBookingError(e.message);
+              }
+            }}
+            className="h-12 border-2 border-musso-pink text-musso-pink font-semibold rounded-btn hover:bg-musso-pink-light flex items-center justify-center gap-1.5 text-sm"
+          >
+            <MessageCircle className="w-4 h-4" /> Message
+          </button>
           <button
             onClick={() => {
               if (!user) { router.push("/auth/login"); return; }
@@ -153,9 +167,9 @@ export default function ProviderPage() {
               }
               setShowBooking(true);
             }}
-            className="flex-1 h-12 bg-musso-pink text-white font-semibold rounded-btn hover:brightness-110 flex items-center justify-center gap-2"
+            className="h-12 bg-musso-pink text-white font-semibold rounded-btn hover:brightness-110 flex items-center justify-center gap-1.5 text-sm"
           >
-            <Calendar className="w-5 h-5" /> Réserver
+            <Calendar className="w-4 h-4" /> Réserver
           </button>
         </div>
 

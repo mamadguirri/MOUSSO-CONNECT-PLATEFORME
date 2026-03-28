@@ -118,6 +118,7 @@ export async function getProvider(req: Request, res: Response) {
       bio: provider.bio,
       avatarUrl: provider.avatarUrl,
       whatsappNumber: provider.whatsappNumber,
+      quartierId: provider.user.quartierId || null,
       quartierName: provider.user.quartier?.name || null,
       services: provider.services.map((s) => ({
         id: s.id,

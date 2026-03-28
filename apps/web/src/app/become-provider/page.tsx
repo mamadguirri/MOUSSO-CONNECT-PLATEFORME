@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
-import { apiGet, apiPostForm } from "@/lib/api";
+import { apiGet, apiPostForm, apiPutForm } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { Navbar } from "@/components/navbar";
 
@@ -14,6 +14,8 @@ export default function BecomeProviderPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [existingLoaded, setExistingLoaded] = useState(false);
 
   // Step 1
   const [avatar, setAvatar] = useState<File | null>(null);
@@ -37,6 +39,41 @@ export default function BecomeProviderPage() {
     queryKey: ["quartiers"],
     queryFn: () => apiGet<any[]>("/quartiers"),
   });
+
+  // Charger les données existantes du profil si le user est déjà prestataire
+  useEffect(() => {
+    if (user?.providerId && !existingLoaded) {
+      apiGet<any>(`/providers/${user.providerId}`).then((provider) => {
+        setIsEditMode(true);
+        setBio(provider.bio || "");
+        setAvatarPreview(provider.avatarUrl || "");
+        setQuartierId(provider.quartierId || user.quartierId || "");
+
+        // Extraire le numéro sans le +223
+        if (provider.whatsappNumber) {
+          const num = provider.whatsappNumber.replace("+223", "");
+          setWhatsappNumber(num);
+        }
+
+        // Catégories sélectionnées
+        if (provider.services && provider.services.length > 0) {
+          setSelectedCategories(provider.services.map((s: any) => s.categoryId || s.category?.id).filter(Boolean));
+          // Récupérer le priceRange du premier service
+          const firstPrice = provider.services[0]?.priceRange;
+          if (firstPrice) setPriceRange(firstPrice);
+        } else if (provider.categories && provider.categories.length > 0) {
+          // Backward compat
+          setSelectedCategories(provider.categories.map((c: any) => c.id).filter(Boolean));
+        }
+
+        setExistingLoaded(true);
+      }).catch(() => {
+        setExistingLoaded(true);
+      });
+    } else if (!user?.providerId) {
+      setExistingLoaded(true);
+    }
+  }, [user, existingLoaded]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -65,7 +102,14 @@ export default function BecomeProviderPage() {
       if (priceRange) formData.append("priceRange", priceRange);
       if (avatar) formData.append("avatar", avatar);
 
-      await apiPostForm("/providers", formData);
+      if (isEditMode) {
+        // Mode édition : PUT /providers/me
+        await apiPutForm("/providers/me", formData);
+      } else {
+        // Mode création : POST /providers
+        await apiPostForm("/providers", formData);
+      }
+
       await refreshUser();
       router.push("/dashboard");
     } catch (e: any) {
@@ -75,11 +119,22 @@ export default function BecomeProviderPage() {
     }
   };
 
+  if (!existingLoaded) {
+    return (
+      <>
+        <Navbar />
+        <div className="max-w-md mx-auto px-4 py-12 text-center text-gray-500">Chargement...</div>
+      </>
+    );
+  }
+
   return (
     <>
       <Navbar />
       <div className="max-w-md mx-auto px-4 py-8">
-        <h1 className="font-heading font-bold text-2xl mb-2 text-center">Créer mon profil prestataire</h1>
+        <h1 className="font-heading font-bold text-2xl mb-2 text-center">
+          {isEditMode ? "Modifier mon profil" : "Créer mon profil prestataire"}
+        </h1>
 
         {/* Barre de progression */}
         <div className="flex items-center gap-2 mb-8 mt-4">
@@ -110,7 +165,9 @@ export default function BecomeProviderPage() {
                   )}
                 </div>
                 <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-                <span className="text-sm text-musso-pink">Ajouter une photo</span>
+                <span className="text-sm text-musso-pink">
+                  {avatarPreview ? "Changer la photo" : "Ajouter une photo"}
+                </span>
               </label>
             </div>
             <div>
@@ -194,7 +251,7 @@ export default function BecomeProviderPage() {
               <select
                 value={quartierId}
                 onChange={(e) => setQuartierId(e.target.value)}
-                className="w-full h-12 border-2 border-gray-200 rounded-btn px-4 text-sm bg-white focus:border-musso-pink focus:outline-none"
+                className="w-full h-12 border-2 border-gray-200 rounded-btn px-4 text-sm bg-white text-gray-700 focus:border-musso-pink focus:outline-none"
               >
                 <option value="">Choisir un quartier</option>
                 {quartiers.map((q: any) => (
@@ -221,7 +278,7 @@ export default function BecomeProviderPage() {
                 disabled={loading || !quartierId}
                 className="flex-1 h-12 bg-musso-pink text-white font-semibold rounded-btn hover:brightness-110 disabled:opacity-50"
               >
-                {loading ? "Création..." : "Créer mon profil"}
+                {loading ? "Enregistrement..." : isEditMode ? "Enregistrer" : "Créer mon profil"}
               </button>
             </div>
           </div>

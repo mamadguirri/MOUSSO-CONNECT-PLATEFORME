@@ -5,11 +5,13 @@ import Link from "next/link";
 import { Shield, Star, Clock, Users, CheckCircle, ArrowRight } from "lucide-react";
 
 import { apiGet } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { SearchBar } from "@/components/search-bar";
 import { CategoryGrid } from "@/components/category-grid";
 import { ProviderGrid } from "@/components/provider-grid";
 
 export default function HomePage() {
+  const { user } = useAuth();
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
     queryFn: () => apiGet<any[]>("/categories"),
@@ -128,34 +130,36 @@ export default function HomePage() {
         />
       </section>
 
-      {/* CTA */}
-      <section className="bg-gradient-to-r from-musso-pink to-pink-600 py-12">
-        <div className="max-w-4xl mx-auto px-4 text-center text-white">
-          <h2 className="font-heading font-bold text-2xl mb-3">
-            Vous êtes prestataire ?
-          </h2>
-          <p className="opacity-90 mb-4">
-            Créez votre profil gratuitement et rejoignez la communauté Musso Connect
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle className="w-4 h-4" /> Profil gratuit
+      {/* CTA - masqué pour les prestataires */}
+      {(!user || user.role !== "PROVIDER") && (
+        <section className="bg-gradient-to-r from-musso-pink to-pink-600 py-12">
+          <div className="max-w-4xl mx-auto px-4 text-center text-white">
+            <h2 className="font-heading font-bold text-2xl mb-3">
+              Vous êtes prestataire ?
+            </h2>
+            <p className="opacity-90 mb-4">
+              Créez votre profil gratuitement et rejoignez la communauté Musso Connect
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
+              <div className="flex items-center gap-2 text-sm">
+                <CheckCircle className="w-4 h-4" /> Profil gratuit
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <CheckCircle className="w-4 h-4" /> Visibilité à Bamako
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <CheckCircle className="w-4 h-4" /> Réservations en ligne
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle className="w-4 h-4" /> Visibilité à Bamako
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle className="w-4 h-4" /> Réservations en ligne
-            </div>
+            <Link
+              href="/become-provider"
+              className="inline-flex items-center justify-center bg-white text-musso-pink font-semibold px-8 h-12 rounded-btn hover:bg-gray-50 transition-all"
+            >
+              Créer mon profil prestataire
+            </Link>
           </div>
-          <Link
-            href="/become-provider"
-            className="inline-flex items-center justify-center bg-white text-musso-pink font-semibold px-8 h-12 rounded-btn hover:bg-gray-50 transition-all"
-          >
-            Créer mon profil prestataire
-          </Link>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

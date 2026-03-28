@@ -21,8 +21,9 @@ model User {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   provider     Provider?
-  tokens       RefreshToken[]
-  bookings     Booking[]      @relation("ClientBookings")
+  tokens        RefreshToken[]
+  bookings      Booking[]        @relation("ClientBookings")
+  conversations Conversation[]   @relation("ClientConversations")
 }
 
 enum Role {
@@ -50,6 +51,7 @@ model Provider {
   updatedAt      DateTime          @updatedAt
   services       ProviderService[]
   bookings       Booking[]
+  conversations  Conversation[]
 }
 
 model Category {
@@ -152,4 +154,41 @@ enum BookingStatus {
   REJECTED
   COMPLETED
   CANCELLED
+}
+
+// ===== MESSAGERIE =====
+
+model Conversation {
+  id           String    @id @default(uuid())
+  clientId     String
+  providerId   String
+  client       User      @relation("ClientConversations", fields: [clientId], references: [id])
+  provider     Provider  @relation(fields: [providerId], references: [id])
+  lastMessageAt DateTime @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  messages     Message[]
+
+  @@unique([clientId, providerId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  senderId       String
+  type           MessageType  @default(TEXT)
+  content        String?
+  fileUrl        String?
+  fileName       String?
+  duration       Int?         // durée du vocal en secondes
+  isRead         Boolean      @default(false)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VOICE
+  FILE
 }

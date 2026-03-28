@@ -26,15 +26,17 @@ export default function OnboardingPage() {
     try {
       await apiPut("/users/me", { name: name.trim(), quartierId });
       await refreshUser();
+      // Rediriger automatiquement selon le type de compte choisi à l'inscription
+      if (user?.accountType === "PROVIDER") {
+        router.push("/become-provider");
+      } else {
+        router.push("/");
+      }
     } catch {
       // ignore
+      router.push("/");
     }
     setLoading(false);
-  };
-
-  const handleChoice = async (isProvider: boolean) => {
-    await handleSubmit();
-    router.push(isProvider ? "/become-provider" : "/");
   };
 
   return (
@@ -63,7 +65,7 @@ export default function OnboardingPage() {
             <select
               value={quartierId}
               onChange={(e) => setQuartierId(e.target.value)}
-              className="w-full h-12 border-2 border-gray-200 rounded-btn px-4 text-sm bg-white focus:border-musso-pink focus:outline-none"
+              className="w-full h-12 border-2 border-gray-200 rounded-btn px-4 text-sm bg-white text-gray-700 focus:border-musso-pink focus:outline-none"
             >
               <option value="">Choisir un quartier</option>
               {quartiers.map((q: any) => (
@@ -72,25 +74,13 @@ export default function OnboardingPage() {
             </select>
           </div>
 
-          <div className="pt-4">
-            <p className="font-medium text-center mb-4">Êtes-vous prestataire ?</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => handleChoice(true)}
-                disabled={loading || !name.trim() || !quartierId}
-                className="h-12 bg-musso-pink text-white font-semibold rounded-btn hover:brightness-110 transition-all disabled:opacity-50"
-              >
-                Oui
-              </button>
-              <button
-                onClick={() => handleChoice(false)}
-                disabled={loading || !name.trim() || !quartierId}
-                className="h-12 border-2 border-gray-200 font-semibold rounded-btn hover:bg-gray-50 transition-all disabled:opacity-50"
-              >
-                Non
-              </button>
-            </div>
-          </div>
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !name.trim() || !quartierId}
+            className="w-full h-12 bg-musso-pink text-white font-semibold rounded-btn hover:brightness-110 transition-all disabled:opacity-50"
+          >
+            {loading ? "Enregistrement..." : "Continuer"}
+          </button>
         </div>
       </div>
     </>

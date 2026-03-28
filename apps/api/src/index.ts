@@ -10,6 +10,7 @@ import { quartierRouter } from './routes/quartiers';
 import { userRouter } from './routes/users';
 import { adminRouter } from './routes/admin';
 import { bookingRouter } from './routes/bookings';
+import { messageRouter } from './routes/messages';
 import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/api/v1/quartiers', quartierRouter);
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/bookings', bookingRouter);
+app.use('/api/v1/messages', messageRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

@@ -28,11 +28,11 @@ export function SearchBar({ categories, quartiers, defaultCategory, defaultQuart
       <select
         value={category}
         onChange={(e) => setCategory(e.target.value)}
-        className="flex-1 h-12 rounded-btn border border-gray-200 px-4 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-musso-pink"
+        className="flex-1 h-12 rounded-btn border border-gray-200 px-4 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-musso-pink"
       >
-        <option value="">Toutes les catégories</option>
+        <option value="" className="text-gray-500">Toutes les catégories</option>
         {categories.map((cat) => (
-          <option key={cat.id} value={cat.slug}>
+          <option key={cat.id} value={cat.slug} className="text-gray-700">
             {cat.name}
           </option>
         ))}
@@ -40,9 +40,9 @@ export function SearchBar({ categories, quartiers, defaultCategory, defaultQuart
       <select
         value={quartier}
         onChange={(e) => setQuartier(e.target.value)}
-        className="flex-1 h-12 rounded-btn border border-gray-200 px-4 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-musso-pink"
+        className="flex-1 h-12 rounded-btn border border-gray-200 px-4 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-musso-pink"
       >
-        <option value="">Tous les quartiers</option>
+        <option value="" className="text-gray-500">Tous les quartiers</option>
         {quartiers.map((q) => (
           <option key={q.id} value={q.id}>
             {q.name}
