@@ -11,6 +11,9 @@ import { userRouter } from './routes/users';
 import { adminRouter } from './routes/admin';
 import { bookingRouter } from './routes/bookings';
 import { messageRouter } from './routes/messages';
+import { reviewRouter } from './routes/reviews';
+import { formationRouter } from './routes/formations';
+import { notificationRouter } from './routes/notifications';
 import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
@@ -42,6 +45,9 @@ app.use('/api/v1/users', userRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/bookings', bookingRouter);
 app.use('/api/v1/messages', messageRouter);
+app.use('/api/v1/reviews', reviewRouter);
+app.use('/api/v1/formations', formationRouter);
+app.use('/api/v1/notifications', notificationRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

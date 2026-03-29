@@ -45,6 +45,11 @@ function getExtension(mimetype: string): string {
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
     'application/vnd.ms-excel': 'xls',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+    'video/mp4': 'mp4',
+    'video/quicktime': 'mov',
+    'video/x-msvideo': 'avi',
+    'video/webm': 'webm',
+    'video/x-matroska': 'mkv',
   };
   return map[mimetype] || mimetype.split('/')[1] || 'bin';
 }

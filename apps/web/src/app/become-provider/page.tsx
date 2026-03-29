@@ -10,7 +10,7 @@ import { Navbar } from "@/components/navbar";
 
 export default function BecomeProviderPage() {
   const router = useRouter();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, loading: authLoading } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -40,9 +40,17 @@ export default function BecomeProviderPage() {
     queryFn: () => apiGet<any[]>("/quartiers"),
   });
 
+  // Rediriger vers login si non connecté
+  useEffect(() => {
+    if (!authLoading && !user) router.push("/auth/login");
+  }, [authLoading, user, router]);
+
   // Charger les données existantes du profil si le user est déjà prestataire
   useEffect(() => {
-    if (user?.providerId && !existingLoaded) {
+    // Attendre que le user soit chargé (pas null)
+    if (!user) return;
+
+    if (user.providerId && !existingLoaded) {
       apiGet<any>(`/providers/${user.providerId}`).then((provider) => {
         setIsEditMode(true);
         setBio(provider.bio || "");
@@ -70,7 +78,7 @@ export default function BecomeProviderPage() {
       }).catch(() => {
         setExistingLoaded(true);
       });
-    } else if (!user?.providerId) {
+    } else if (!user.providerId) {
       setExistingLoaded(true);
     }
   }, [user, existingLoaded]);
@@ -119,11 +127,14 @@ export default function BecomeProviderPage() {
     }
   };
 
-  if (!existingLoaded) {
+  if (authLoading || !user || !existingLoaded) {
     return (
       <>
         <Navbar />
-        <div className="max-w-md mx-auto px-4 py-12 text-center text-gray-500">Chargement...</div>
+        <div className="max-w-md mx-auto px-4 py-12 text-center">
+          <h1 className="font-heading font-bold text-2xl mb-4">Devenir prestataire</h1>
+          <p className="text-gray-500">Chargement...</p>
+        </div>
       </>
     );
   }

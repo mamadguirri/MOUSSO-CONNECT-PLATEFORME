@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { prisma } from '../lib/prisma';
 import { authenticate, requireRole, AuthRequest } from '../middlewares/auth';
+import { notifyNewBooking, notifyBookingStatus } from '../services/notification';
 
 export const bookingRouter = Router();
 
@@ -34,6 +35,16 @@ bookingRouter.post('/', authenticate, async (req: AuthRequest, res: Response) =>
       return;
     }
 
+    // Empêcher l'auto-réservation
+    const provider = await prisma.provider.findUnique({ where: { id: data.providerId } });
+    if (provider && provider.userId === req.userId) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'SELF_BOOKING', message: 'Vous ne pouvez pas réserver vos propres services' },
+      });
+      return;
+    }
+
     const booking = await prisma.booking.create({
       data: {
         clientId: req.userId!,
@@ -49,6 +60,10 @@ bookingRouter.post('/', authenticate, async (req: AuthRequest, res: Response) =>
         service: { include: { category: true } },
       },
     });
+
+    // Notification au prestataire
+    const client = await prisma.user.findUnique({ where: { id: req.userId! } });
+    notifyNewBooking(data.providerId, booking.provider.userId, client?.name || 'Client', booking.service.category.name, booking.id).catch(() => {});
 
     res.status(201).json({
       success: true,
@@ -164,7 +179,11 @@ bookingRouter.patch('/:id', authenticate, requireRole('PROVIDER'), async (req: A
     const updated = await prisma.booking.update({
       where: { id: booking.id },
       data: { status, rejectionReason: status === 'REJECTED' ? rejectionReason : null },
+      include: { provider: { include: { user: true } } },
     });
+
+    // Notification au client
+    notifyBookingStatus(booking.clientId, updated.provider.user.name, status, booking.id).catch(() => {});
 
     res.json({
       success: true,
@@ -194,10 +213,21 @@ bookingRouter.patch('/:id/cancel', authenticate, async (req: AuthRequest, res: R
     return;
   }
 
-  await prisma.booking.update({
+  const cancelled = await prisma.booking.update({
     where: { id: booking.id },
     data: { status: 'CANCELLED' },
+    include: { provider: true, client: true },
   });
+
+  // Notification au prestataire
+  const { createNotification } = await import('../services/notification');
+  createNotification({
+    userId: cancelled.provider.userId,
+    type: 'BOOKING_CANCELLED',
+    title: 'Réservation annulée',
+    message: `${cancelled.client.name} a annulé sa réservation`,
+    data: { bookingId: booking.id },
+  }).catch(() => {});
 
   res.json({ success: true, data: { message: 'Réservation annulée' } });
 });

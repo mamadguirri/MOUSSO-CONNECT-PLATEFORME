@@ -110,9 +110,10 @@ export default function ForgotPasswordPage() {
             <OtpInput value={otp} onChange={setOtp} />
 
             <div>
-              <label className="block text-sm font-medium mb-1.5">Nouveau mot de passe</label>
+              <label htmlFor="forgot-new-password" className="block text-sm font-medium mb-1.5">Nouveau mot de passe</label>
               <div className="relative">
                 <input
+                  id="forgot-new-password"
                   type={showPassword ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
@@ -122,6 +123,7 @@ export default function ForgotPasswordPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label="Afficher/masquer le mot de passe"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -130,8 +132,9 @@ export default function ForgotPasswordPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1.5">Confirmer</label>
+              <label htmlFor="forgot-confirm-password" className="block text-sm font-medium mb-1.5">Confirmer</label>
               <input
+                id="forgot-confirm-password"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}

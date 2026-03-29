@@ -23,7 +23,10 @@ model User {
   provider     Provider?
   tokens        RefreshToken[]
   bookings      Booking[]        @relation("ClientBookings")
+  reviews       Review[]         @relation("ClientReviews")
   conversations Conversation[]   @relation("ClientConversations")
+  purchases     FormationPurchase[]
+  notifications Notification[]
 }
 
 enum Role {
@@ -44,6 +47,8 @@ model Provider {
   bio            String?
   avatarUrl      String?
   whatsappNumber String
+  latitude       Float?
+  longitude      Float?
   isVerified     Boolean           @default(false)
   isSuspended    Boolean           @default(false)
   deletedAt      DateTime?
@@ -51,7 +56,9 @@ model Provider {
   updatedAt      DateTime          @updatedAt
   services       ProviderService[]
   bookings       Booking[]
+  reviews        Review[]
   conversations  Conversation[]
+  formations     Formation[]
 }
 
 model Category {
@@ -98,11 +105,13 @@ model Photo {
 }
 
 model Quartier {
-  id     String @id @default(uuid())
-  name   String
-  ville  String @default("Bamako")
-  region String @default("Bamako")
-  users  User[]
+  id        String @id @default(uuid())
+  name      String
+  ville     String @default("Bamako")
+  region    String @default("Bamako")
+  latitude  Float?
+  longitude Float?
+  users     User[]
 }
 
 model OtpSession {
@@ -156,6 +165,22 @@ enum BookingStatus {
   CANCELLED
 }
 
+// ===== AVIS ET NOTATIONS =====
+
+model Review {
+  id         String   @id @default(uuid())
+  clientId   String
+  providerId String
+  rating     Int      // 1-5 étoiles
+  comment    String?
+  client     User     @relation("ClientReviews", fields: [clientId], references: [id])
+  provider   Provider @relation(fields: [providerId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([clientId, providerId])
+}
+
 // ===== MESSAGERIE =====
 
 model Conversation {
@@ -191,4 +216,88 @@ enum MessageType {
   IMAGE
   VOICE
   FILE
+}
+
+// ===== FORMATIONS =====
+
+model Formation {
+  id          String   @id @default(uuid())
+  providerId  String
+  provider    Provider @relation(fields: [providerId], references: [id])
+  title       String
+  description String?
+  price       Int      // Prix en FCFA
+  coverUrl    String?
+  isPublished Boolean  @default(false)
+  modules     FormationModule[]
+  purchases   FormationPurchase[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model FormationModule {
+  id           String   @id @default(uuid())
+  formationId  String
+  formation    Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  order        Int      @default(0)
+  medias       FormationMedia[]
+  createdAt    DateTime @default(now())
+}
+
+model FormationMedia {
+  id        String   @id @default(uuid())
+  moduleId  String
+  module    FormationModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  type      MediaType @default(IMAGE)
+  url       String
+  name      String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+model FormationPurchase {
+  id           String    @id @default(uuid())
+  clientId     String
+  formationId  String
+  client       User      @relation(fields: [clientId], references: [id])
+  formation    Formation @relation(fields: [formationId], references: [id])
+  pricePaid    Int
+  createdAt    DateTime  @default(now())
+
+  @@unique([clientId, formationId])
+}
+
+// ===== NOTIFICATIONS =====
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?            // données supplémentaires (bookingId, formationId, etc.)
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+enum NotificationType {
+  BOOKING_NEW        // Prestataire: nouvelle réservation
+  BOOKING_ACCEPTED   // Client: réservation acceptée
+  BOOKING_REJECTED   // Client: réservation refusée
+  BOOKING_COMPLETED  // Client: réservation terminée
+  BOOKING_CANCELLED  // Prestataire: réservation annulée
+  FORMATION_PURCHASE // Prestataire: quelqu'un a acheté sa formation
+  REVIEW_NEW         // Prestataire: nouvel avis
+  PROVIDER_VERIFIED  // Prestataire: profil vérifié
+  PROVIDER_SUSPENDED // Prestataire: profil suspendu
+  SYSTEM             // Notification système
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import Link from "next/link";
 import { apiGet, apiPatch } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { Navbar } from "@/components/navbar";
-import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Phone, MessageSquare, Search, Filter } from "lucide-react";
+import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Phone, MessageSquare, Search } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   PENDING: { label: "En attente", color: "text-amber-700", bg: "bg-amber-100" },
@@ -30,11 +30,12 @@ export default function BookingsPage() {
   const [showConfirm, setShowConfirm] = useState<{ id: string; action: string } | null>(null);
 
   const isProvider = user?.role === "PROVIDER";
+  const [viewMode, setViewMode] = useState<"received" | "my">(isProvider ? "received" : "my");
 
   const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ["bookings", isProvider ? "received" : "my"],
+    queryKey: ["bookings", viewMode],
     queryFn: () =>
-      apiGet<any[]>(isProvider ? "/bookings/received" : "/bookings/my"),
+      apiGet<any[]>(viewMode === "received" ? "/bookings/received" : "/bookings/my"),
     enabled: !!user,
   });
 
@@ -57,6 +58,10 @@ export default function BookingsPage() {
     },
   });
 
+  useEffect(() => {
+    if (!authLoading && !user) router.push("/auth/login");
+  }, [authLoading, user, router]);
+
   if (authLoading) {
     return (
       <>
@@ -66,10 +71,7 @@ export default function BookingsPage() {
     );
   }
 
-  if (!user) {
-    router.push("/auth/login");
-    return null;
-  }
+  if (!user) return null;
 
   const filteredBookings = statusFilter === "all"
     ? bookings
@@ -100,10 +102,36 @@ export default function BookingsPage() {
       <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-2">
           <h1 className="font-heading font-bold text-2xl">
-            {isProvider ? "Réservations reçues" : "Mes réservations"}
+            {viewMode === "received" ? "Réservations reçues" : "Mes réservations"}
           </h1>
           <span className="text-sm text-gray-500">{bookings.length} total</span>
         </div>
+
+        {/* Onglets Reçues / Mes réservations (prestataires uniquement) */}
+        {isProvider && (
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => { setViewMode("received"); setStatusFilter("all"); }}
+              className={`flex-1 py-2.5 rounded-btn text-sm font-semibold transition-colors ${
+                viewMode === "received"
+                  ? "bg-musso-pink text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Reçues
+            </button>
+            <button
+              onClick={() => { setViewMode("my"); setStatusFilter("all"); }}
+              className={`flex-1 py-2.5 rounded-btn text-sm font-semibold transition-colors ${
+                viewMode === "my"
+                  ? "bg-musso-pink text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Mes réservations
+            </button>
+          </div>
+        )}
 
         {/* Stats rapides */}
         {bookings.length > 0 && (
@@ -157,11 +185,11 @@ export default function BookingsPage() {
               {statusFilter !== "all" ? "Aucune réservation avec ce statut" : "Aucune réservation pour le moment"}
             </p>
             <p className="text-sm text-gray-400 mb-4">
-              {isProvider
+              {viewMode === "received"
                 ? "Les clients pourront vous réserver depuis votre profil"
                 : "Trouvez une prestataire et réservez un service"}
             </p>
-            {!isProvider && (
+            {viewMode === "my" && (
               <Link
                 href="/search"
                 className="inline-flex items-center gap-1 text-musso-pink hover:underline text-sm font-medium"
@@ -190,11 +218,11 @@ export default function BookingsPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h3 className="font-semibold text-base">
-                          {isProvider ? booking.clientName : booking.providerName}
+                          {viewMode === "received" ? booking.clientName : booking.providerName}
                         </h3>
                         <p className="text-sm text-musso-pink font-medium mt-0.5">{booking.serviceName}</p>
                       </div>
-                      {!isProvider && booking.providerAvatar && (
+                      {viewMode === "my" && booking.providerAvatar && (
                         <div className="w-10 h-10 rounded-full bg-musso-pink-light overflow-hidden flex-shrink-0">
                           <img src={booking.providerAvatar} alt="" className="w-full h-full object-cover" />
                         </div>
@@ -235,15 +263,15 @@ export default function BookingsPage() {
                     )}
 
                     {/* Contact (prestataire voit le tel du client) */}
-                    {isProvider && (
+                    {viewMode === "received" && (
                       <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-3">
                         <Phone className="w-3.5 h-3.5" />
                         <span>{booking.clientPhone}</span>
                       </div>
                     )}
 
-                    {/* Actions prestataire */}
-                    {isProvider && booking.status === "PENDING" && (
+                    {/* Actions prestataire (uniquement dans l'onglet "Reçues") */}
+                    {viewMode === "received" && booking.status === "PENDING" && (
                       <div className="flex gap-2 pt-1">
                         <button
                           onClick={() => setShowConfirm({ id: booking.id, action: "accept" })}
@@ -260,7 +288,7 @@ export default function BookingsPage() {
                       </div>
                     )}
 
-                    {isProvider && booking.status === "ACCEPTED" && (
+                    {viewMode === "received" && booking.status === "ACCEPTED" && (
                       <button
                         onClick={() => setShowConfirm({ id: booking.id, action: "complete" })}
                         className="w-full h-10 bg-blue-600 text-white rounded-btn text-sm font-medium hover:brightness-110 flex items-center justify-center gap-1.5"
@@ -269,8 +297,8 @@ export default function BookingsPage() {
                       </button>
                     )}
 
-                    {/* Actions client */}
-                    {!isProvider && booking.status === "PENDING" && (
+                    {/* Actions client (onglet "Mes réservations") */}
+                    {viewMode === "my" && booking.status === "PENDING" && (
                       <button
                         onClick={() => setShowConfirm({ id: booking.id, action: "cancel" })}
                         className="w-full h-10 border border-red-300 text-red-600 rounded-btn text-sm font-medium hover:bg-red-50 flex items-center justify-center gap-1.5"
@@ -280,14 +308,14 @@ export default function BookingsPage() {
                     )}
 
                     {/* Message de suivi pour le client */}
-                    {!isProvider && booking.status === "ACCEPTED" && (
+                    {viewMode === "my" && booking.status === "ACCEPTED" && (
                       <div className="bg-green-50 rounded-lg p-3 text-center">
                         <p className="text-sm text-green-700 font-medium">Réservation confirmée !</p>
                         <p className="text-xs text-green-600 mt-0.5">La prestataire a accepté. Présentez-vous à la date prévue.</p>
                       </div>
                     )}
 
-                    {!isProvider && booking.status === "COMPLETED" && (
+                    {viewMode === "my" && booking.status === "COMPLETED" && (
                       <div className="bg-blue-50 rounded-lg p-3 text-center">
                         <p className="text-sm text-blue-700 font-medium">Service terminé</p>
                         <p className="text-xs text-blue-600 mt-0.5">Merci d&apos;avoir utilisé Musso Connect !</p>

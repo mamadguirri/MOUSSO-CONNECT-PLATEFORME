@@ -3,14 +3,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   ArrowLeft,
   Send,
   Paperclip,
   Mic,
-  Square,
-  Image as ImageIcon,
   FileText,
   X,
   Play,
@@ -19,7 +16,6 @@ import {
 
 import { apiGet, apiPost, apiPostForm } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { Navbar } from "@/components/navbar";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function formatTime(dateStr: string) {

@@ -6,8 +6,20 @@ import { uploadFile, deleteFile } from '../services/storage';
 import { AuthRequest } from '../middlewares/auth';
 
 const listSchema = z.object({
+  q: z.string().optional(),
   categorySlug: z.string().optional(),
   quartierId: z.string().uuid().optional(),
+  lat: z.coerce.number().optional(),
+  lng: z.coerce.number().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+const nearbySchema = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
+  radius: z.coerce.number().min(1).max(50).default(10),
+  categorySlug: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
@@ -21,9 +33,21 @@ const createSchema = z.object({
   priceRange: z.string().optional(),
 });
 
+// Calcule la distance Haversine en km entre deux points GPS
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Rayon de la Terre en km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export async function listProviders(req: Request, res: Response) {
   try {
-    const { categorySlug, quartierId, page, limit } = listSchema.parse(req.query);
+    const { q, categorySlug, quartierId, lat, lng, page, limit } = listSchema.parse(req.query);
 
     const where: Record<string, unknown> = {
       isVerified: true,
@@ -39,12 +63,26 @@ export async function listProviders(req: Request, res: Response) {
       where.user = { quartierId };
     }
 
+    // Recherche texte libre : nom, bio, quartier, catégorie
+    if (q && q.trim()) {
+      const search = q.trim();
+      where.OR = [
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+        { bio: { contains: search, mode: 'insensitive' } },
+        { user: { quartier: { name: { contains: search, mode: 'insensitive' } } } },
+        { user: { quartier: { ville: { contains: search, mode: 'insensitive' } } } },
+        { user: { quartier: { region: { contains: search, mode: 'insensitive' } } } },
+        { services: { some: { category: { name: { contains: search, mode: 'insensitive' } } } } },
+      ];
+    }
+
     const [providers, total] = await Promise.all([
       prisma.provider.findMany({
         where,
         include: {
           user: { include: { quartier: true } },
           services: { include: { category: true, photos: { orderBy: { order: 'asc' }, take: 1 } } },
+          reviews: { select: { rating: true } },
         },
         skip: (page - 1) * limit,
         take: limit,
@@ -56,20 +94,121 @@ export async function listProviders(req: Request, res: Response) {
     res.json({
       success: true,
       data: {
-        providers: providers.map((p) => ({
-          id: p.id,
-          userId: p.userId,
-          name: p.user.name,
-          bio: p.bio,
-          avatarUrl: p.avatarUrl,
-          quartierName: p.user.quartier?.name || null,
-          categories: p.services.map((s) => ({
-            name: s.category.name,
-            slug: s.category.slug,
-            iconName: s.category.iconName,
-          })),
-          isVerified: p.isVerified,
-        })),
+        providers: providers.map((p) => {
+          let distance: number | null = null;
+          if (lat != null && lng != null) {
+            const pLat = p.latitude ?? p.user.quartier?.latitude;
+            const pLng = p.longitude ?? p.user.quartier?.longitude;
+            if (pLat != null && pLng != null) {
+              distance = Math.round(haversineDistance(lat, lng, pLat, pLng) * 10) / 10;
+            }
+          }
+          const totalReviews = p.reviews?.length || 0;
+          const avgRating = totalReviews > 0
+            ? Math.round((p.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / totalReviews) * 10) / 10
+            : null;
+
+          return {
+            id: p.id,
+            userId: p.userId,
+            name: p.user.name,
+            bio: p.bio,
+            avatarUrl: p.avatarUrl,
+            quartierName: p.user.quartier?.name || null,
+            categories: p.services.map((s) => ({
+              name: s.category.name,
+              slug: s.category.slug,
+              iconName: s.category.iconName,
+            })),
+            isVerified: p.isVerified,
+            distance,
+            averageRating: avgRating,
+            totalReviews,
+          };
+        }),
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: error.errors[0].message },
+      });
+      return;
+    }
+    throw error;
+  }
+}
+
+// GET /providers/nearby?lat=X&lng=Y&radius=10
+export async function listProvidersNearby(req: Request, res: Response) {
+  try {
+    const { lat, lng, radius, categorySlug, page, limit } = nearbySchema.parse(req.query);
+
+    const where: Record<string, unknown> = {
+      isVerified: true,
+      isSuspended: false,
+      deletedAt: null,
+    };
+
+    if (categorySlug) {
+      where.services = { some: { category: { slug: categorySlug } } };
+    }
+
+    // Récupérer tous les providers vérifiés (dans le rayon approximatif)
+    const allProviders = await prisma.provider.findMany({
+      where,
+      include: {
+        user: { include: { quartier: true } },
+        services: { include: { category: true, photos: { orderBy: { order: 'asc' }, take: 1 } } },
+        reviews: { select: { rating: true } },
+      },
+    });
+
+    // Calculer la distance et filtrer par rayon
+    const withDistance = allProviders
+      .map((p) => {
+        const pLat = p.latitude ?? p.user.quartier?.latitude;
+        const pLng = p.longitude ?? p.user.quartier?.longitude;
+        if (pLat == null || pLng == null) return null;
+        const distance = haversineDistance(lat, lng, pLat, pLng);
+        return { provider: p, distance: Math.round(distance * 10) / 10 };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null && item.distance <= radius)
+      .sort((a, b) => a.distance - b.distance);
+
+    const total = withDistance.length;
+    const paginated = withDistance.slice((page - 1) * limit, page * limit);
+
+    res.json({
+      success: true,
+      data: {
+        providers: paginated.map(({ provider: p, distance }) => {
+          const totalReviews = p.reviews?.length || 0;
+          const avgRating = totalReviews > 0
+            ? Math.round((p.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / totalReviews) * 10) / 10
+            : null;
+          return {
+            id: p.id,
+            userId: p.userId,
+            name: p.user.name,
+            bio: p.bio,
+            avatarUrl: p.avatarUrl,
+            quartierName: p.user.quartier?.name || null,
+            categories: p.services.map((s) => ({
+              name: s.category.name,
+              slug: s.category.slug,
+              iconName: s.category.iconName,
+            })),
+            isVerified: p.isVerified,
+            distance,
+            averageRating: avgRating,
+            totalReviews,
+          };
+        }),
         total,
         page,
         totalPages: Math.ceil(total / limit),
@@ -98,6 +237,7 @@ export async function getProvider(req: Request, res: Response) {
           photos: { orderBy: { order: 'asc' } },
         },
       },
+      reviews: { select: { rating: true } },
     },
   });
 
@@ -108,6 +248,12 @@ export async function getProvider(req: Request, res: Response) {
     });
     return;
   }
+
+  // Calcul note moyenne
+  const totalReviews = provider.reviews.length;
+  const averageRating = totalReviews > 0
+    ? Math.round((provider.reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews) * 10) / 10
+    : null;
 
   res.json({
     success: true,
@@ -120,6 +266,8 @@ export async function getProvider(req: Request, res: Response) {
       whatsappNumber: provider.whatsappNumber,
       quartierId: provider.user.quartierId || null,
       quartierName: provider.user.quartier?.name || null,
+      latitude: provider.latitude || provider.user.quartier?.latitude || null,
+      longitude: provider.longitude || provider.user.quartier?.longitude || null,
       services: provider.services.map((s) => ({
         id: s.id,
         categoryId: s.categoryId,
@@ -148,6 +296,8 @@ export async function getProvider(req: Request, res: Response) {
         order: ph.order,
       }))),
       isVerified: provider.isVerified,
+      averageRating,
+      totalReviews,
       createdAt: provider.createdAt.toISOString(),
     },
   });

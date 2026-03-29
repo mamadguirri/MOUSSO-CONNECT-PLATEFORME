@@ -11,6 +11,9 @@ interface Provider {
   categories: { name: string; slug: string; iconName: string }[];
   bio: string | null;
   isVerified?: boolean;
+  distance?: number | null;
+  averageRating?: number | null;
+  totalReviews?: number;
 }
 
 interface ProviderGridProps {

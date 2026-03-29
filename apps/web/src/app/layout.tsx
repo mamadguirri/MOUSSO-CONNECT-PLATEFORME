@@ -12,10 +12,32 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Musso Connect - Chaque femme mérite le succès",
+  metadataBase: new URL("https://mussoconnect.com"),
+  title: {
+    default: "Musso Connect - Chaque femme mérite le succès",
+    template: "%s | Musso Connect",
+  },
   description:
-    "Trouvez des prestataires de services artisanaux à Bamako : coiffure, maquillage, couture, henné, manucure et plus.",
+    "Musso Connect est la plateforme de référence pour trouver des prestataires de services artisanaux à Bamako, Mali. Coiffure, maquillage, couture, henné, manucure, cuisine et bien plus. Réservez facilement en ligne et soutenez les femmes entrepreneures.",
   manifest: "/manifest.json",
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    url: "https://mussoconnect.com",
+    siteName: "Musso Connect",
+    title: "Musso Connect - Chaque femme mérite le succès",
+    description:
+      "Musso Connect est la plateforme de référence pour trouver des prestataires de services artisanaux à Bamako, Mali. Coiffure, maquillage, couture, henné, manucure, cuisine et bien plus. Réservez facilement en ligne et soutenez les femmes entrepreneures.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Musso Connect - Chaque femme mérite le succès",
+    description:
+      "Musso Connect est la plateforme de référence pour trouver des prestataires de services artisanaux à Bamako, Mali. Coiffure, maquillage, couture, henné, manucure, cuisine et bien plus.",
+  },
+  alternates: {
+    canonical: "/",
+  },
 };
 
 export const viewport: Viewport = {
@@ -32,7 +54,10 @@ export default function RootLayout({
   return (
     <html lang="fr" className={cn(inter.variable, poppins.variable)}>
       <body className="font-sans antialiased bg-white text-musso-dark">
-        <Providers>{children}</Providers>
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-0 focus:left-0 focus:z-50 focus:p-4 focus:bg-white focus:text-musso-pink">Aller au contenu principal</a>
+        <Providers>
+          <main id="main-content">{children}</main>
+        </Providers>
       </body>
     </html>
   );

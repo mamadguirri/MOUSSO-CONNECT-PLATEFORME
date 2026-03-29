@@ -1,23 +1,66 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MapPin, Calendar, Clock, CheckCircle, Phone, Star, MessageCircle } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Clock, CheckCircle, Star, MessageCircle } from "lucide-react";
 
 import { apiGet, apiPost } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useGeolocation } from "@/hooks/use-geolocation";
 import { Navbar } from "@/components/navbar";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
+function StarRating({ rating, onRate, interactive = false, size = "md" }: {
+  rating: number;
+  onRate?: (r: number) => void;
+  interactive?: boolean;
+  size?: "sm" | "md" | "lg";
+}) {
+  const sizeClass = size === "sm" ? "w-4 h-4" : size === "lg" ? "w-7 h-7" : "w-5 h-5";
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <button
+          key={i}
+          type="button"
+          disabled={!interactive}
+          onClick={() => onRate?.(i)}
+          className={interactive ? "cursor-pointer hover:scale-110 transition-transform" : "cursor-default"}
+        >
+          <Star
+            className={`${sizeClass} ${
+              i <= rating ? "text-amber-400 fill-amber-400" : "text-gray-300"
+            }`}
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function timeAgoReview(dateStr: string) {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const days = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  if (days === 0) return "Aujourd'hui";
+  if (days === 1) return "Hier";
+  if (days < 7) return `Il y a ${days} jours`;
+  if (days < 30) return `Il y a ${Math.floor(days / 7)} semaine${Math.floor(days / 7) > 1 ? 's' : ''}`;
+  if (days < 365) return `Il y a ${Math.floor(days / 30)} mois`;
+  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+}
+
 export default function ProviderPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { coords } = useGeolocation();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [activeService, setActiveService] = useState<string | null>(null);
   const [showBooking, setShowBooking] = useState(false);
   const [bookingDate, setBookingDate] = useState("");
@@ -28,10 +71,51 @@ export default function ProviderPage() {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState("");
 
+  // Avis
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+
   const { data: provider, isLoading } = useQuery({
     queryKey: ["provider", id],
     queryFn: () => apiGet<any>(`/providers/${id}`),
   });
+
+  const { data: reviewsData } = useQuery({
+    queryKey: ["reviews", id],
+    queryFn: () => apiGet<any>(`/reviews/${id}`),
+    enabled: !!id,
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: (data: { providerId: string; rating: number; comment?: string }) =>
+      apiPost("/reviews", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reviews", id] });
+      setShowReviewForm(false);
+      setReviewRating(0);
+      setReviewComment("");
+    },
+  });
+
+  // Vérifier si c'est le propre profil du prestataire
+  const isOwnProfile = user?.providerId === id;
+
+  // Calcul de la distance
+  let providerDistance: number | null = null;
+  if (coords && provider) {
+    const pLat = provider.latitude ?? null;
+    const pLng = provider.longitude ?? null;
+    if (pLat && pLng) {
+      const R = 6371;
+      const dLat = (pLat - coords.latitude) * Math.PI / 180;
+      const dLon = (pLng - coords.longitude) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(coords.latitude * Math.PI / 180) * Math.cos(pLat * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      providerDistance = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10;
+    }
+  }
 
   const handleBooking = async () => {
     if (!user) {
@@ -91,9 +175,9 @@ export default function ProviderPage() {
     );
   }
 
-  const selectedService = activeService
-    ? provider.services?.find((s: any) => s.id === activeService)
-    : null;
+  const reviews = reviewsData?.reviews || [];
+  const avgRating = reviewsData?.averageRating || 0;
+  const totalReviews = reviewsData?.totalReviews || 0;
 
   return (
     <>
@@ -120,6 +204,16 @@ export default function ProviderPage() {
             )}
           </div>
           <h1 className="font-heading font-bold text-2xl">{provider.name}</h1>
+
+          {/* Note moyenne */}
+          {totalReviews > 0 && (
+            <div className="flex items-center justify-center gap-2 mt-1">
+              <StarRating rating={Math.round(avgRating)} />
+              <span className="font-semibold text-gray-700">{avgRating}</span>
+              <span className="text-sm text-gray-400">({totalReviews} avis)</span>
+            </div>
+          )}
+
           {provider.isVerified && (
             <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full mt-1">
               <CheckCircle className="w-3 h-3" /> Profil vérifié
@@ -128,6 +222,11 @@ export default function ProviderPage() {
           {provider.quartierName && (
             <p className="text-gray-500 flex items-center justify-center gap-1 mt-1">
               <MapPin className="w-4 h-4" /> {provider.quartierName}, Bamako
+              {providerDistance != null && (
+                <span className="text-musso-pink font-semibold ml-1">
+                  ({providerDistance < 1 ? `${Math.round(providerDistance * 1000)} m` : `${providerDistance} km`})
+                </span>
+              )}
             </p>
           )}
           {provider.services && provider.services.length > 0 && (
@@ -138,6 +237,17 @@ export default function ProviderPage() {
         </div>
 
         {/* Actions */}
+        {isOwnProfile ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-center">
+            <p className="text-blue-700 font-medium text-sm">C&apos;est votre profil</p>
+            <button
+              onClick={() => router.push("/become-provider")}
+              className="mt-2 text-sm text-blue-600 hover:underline font-medium"
+            >
+              Modifier mon profil →
+            </button>
+          </div>
+        ) : (
         <div className="grid grid-cols-3 gap-2 mb-6">
           <WhatsAppButton
             phone={provider.whatsappNumber}
@@ -172,6 +282,7 @@ export default function ProviderPage() {
             <Calendar className="w-4 h-4" /> Réserver
           </button>
         </div>
+        )}
 
         {bookingSuccess && (
           <div className="bg-green-50 text-green-600 p-3 rounded-btn text-sm mb-4 text-center">
@@ -211,29 +322,114 @@ export default function ProviderPage() {
                   {service.photos && service.photos.length > 0 && (
                     <PhotoGallery photos={service.photos} />
                   )}
-                  <button
-                    onClick={() => {
-                      if (!user) { router.push("/auth/login"); return; }
-                      setActiveService(service.id);
-                      setShowBooking(true);
-                    }}
-                    className="mt-3 w-full h-9 bg-musso-pink/10 text-musso-pink text-sm font-medium rounded-btn hover:bg-musso-pink/20 flex items-center justify-center gap-1.5"
-                  >
-                    <Calendar className="w-3.5 h-3.5" /> Réserver ce service
-                  </button>
+                  {!isOwnProfile && (
+                    <button
+                      onClick={() => {
+                        if (!user) { router.push("/auth/login"); return; }
+                        setActiveService(service.id);
+                        setShowBooking(true);
+                      }}
+                      className="mt-3 w-full h-9 bg-musso-pink/10 text-musso-pink text-sm font-medium rounded-btn hover:bg-musso-pink/20 flex items-center justify-center gap-1.5"
+                    >
+                      <Calendar className="w-3.5 h-3.5" /> Réserver ce service
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Backward compat: flat photos */}
-        {(!provider.services || provider.services.length === 0) && provider.photos?.length > 0 && (
-          <div>
-            <h2 className="font-heading font-semibold text-lg mb-2">Galerie</h2>
-            <PhotoGallery photos={provider.photos} />
+        {/* Section Avis */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-heading font-semibold text-lg">
+              Avis {totalReviews > 0 && <span className="text-gray-400 font-normal text-sm">({totalReviews})</span>}
+            </h2>
+            {user && !isOwnProfile && (
+              <button
+                onClick={() => {
+                  if (!user) { router.push("/auth/login"); return; }
+                  setShowReviewForm(!showReviewForm);
+                }}
+                className="text-sm text-musso-pink font-medium hover:underline"
+              >
+                {showReviewForm ? "Annuler" : "Laisser un avis"}
+              </button>
+            )}
           </div>
-        )}
+
+          {/* Formulaire d'avis */}
+          {showReviewForm && (
+            <div className="bg-gray-50 rounded-card p-4 mb-4">
+              <p className="text-sm font-medium mb-2">Votre note</p>
+              <StarRating rating={reviewRating} onRate={setReviewRating} interactive size="lg" />
+              <textarea
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value.slice(0, 500))}
+                placeholder="Partagez votre expérience (optionnel)..."
+                rows={3}
+                className="w-full mt-3 border-2 border-gray-200 rounded-btn p-3 text-sm focus:border-musso-pink focus:outline-none resize-none"
+              />
+              <p className="text-xs text-gray-400 text-right">{reviewComment.length}/500</p>
+              {reviewMutation.error && (
+                <p className="text-red-500 text-xs mt-1">{(reviewMutation.error as any)?.message || "Erreur"}</p>
+              )}
+              <button
+                onClick={() => {
+                  if (reviewRating === 0) return;
+                  reviewMutation.mutate({
+                    providerId: id!,
+                    rating: reviewRating,
+                    comment: reviewComment || undefined,
+                  });
+                }}
+                disabled={reviewRating === 0 || reviewMutation.isPending}
+                className="w-full mt-2 h-10 bg-musso-pink text-white rounded-btn text-sm font-semibold hover:brightness-110 disabled:opacity-50"
+              >
+                {reviewMutation.isPending ? "Envoi..." : "Publier l'avis"}
+              </button>
+            </div>
+          )}
+
+          {/* Liste des avis */}
+          {reviews.length === 0 ? (
+            <div className="text-center py-6 bg-gray-50 rounded-card">
+              <Star className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">Aucun avis pour le moment</p>
+              {user && user.role !== "PROVIDER" && (
+                <button
+                  onClick={() => setShowReviewForm(true)}
+                  className="text-sm text-musso-pink font-medium mt-1 hover:underline"
+                >
+                  Soyez la première à donner votre avis !
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {reviews.map((review: any) => (
+                <div key={review.id} className="bg-white rounded-card shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-musso-pink-light flex items-center justify-center">
+                        <span className="text-musso-pink text-sm font-bold">{review.clientName[0]}</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{review.clientName}</p>
+                        <p className="text-xs text-gray-400">{timeAgoReview(review.createdAt)}</p>
+                      </div>
+                    </div>
+                    <StarRating rating={review.rating} size="sm" />
+                  </div>
+                  {review.comment && (
+                    <p className="text-sm text-gray-600 mt-2">{review.comment}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modal réservation */}

@@ -61,9 +61,10 @@ export default function LoginPage() {
           <PhoneInput value={phone} onChange={setPhone} error="" />
 
           <div>
-            <label className="block text-sm font-medium mb-1.5">Mot de passe</label>
+            <label htmlFor="login-password" className="block text-sm font-medium mb-1.5">Mot de passe</label>
             <div className="relative">
               <input
+                id="login-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -74,6 +75,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label="Afficher/masquer le mot de passe"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}

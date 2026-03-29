@@ -15,14 +15,11 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.7.0",
     "next": "14.2.35",
-    "next-pwa": "^5.6.0",
     "react": "^18",
     "react-dom": "^18",
-    "shadcn": "^4.1.1",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
-    "@types/minimatch": "^6.0.0",
     "@types/node": "^20.19.37",
     "@types/react": "^18",
     "@types/react-dom": "^18",

@@ -2,21 +2,25 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState, Suspense } from "react";
-import { X, SlidersHorizontal, Users } from "lucide-react";
+import { useState, useEffect, Suspense } from "react";
+import { X, SlidersHorizontal, Users, Navigation, Loader2 } from "lucide-react";
 
 import { apiGet } from "@/lib/api";
 import { Navbar } from "@/components/navbar";
 import { SearchBar } from "@/components/search-bar";
 import { ProviderGrid } from "@/components/provider-grid";
 import { Pagination } from "@/components/pagination";
+import { useGeolocation } from "@/hooks/use-geolocation";
 
 function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const queryText = searchParams.get("q") || "";
   const categorySlug = searchParams.get("category") || "";
   const quartierId = searchParams.get("quartier") || "";
   const [page, setPage] = useState(1);
+  const [nearMe, setNearMe] = useState(false);
+  const { coords, loading: geoLoading, error: geoError, supported: geoSupported, requestLocation } = useGeolocation();
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
@@ -28,31 +32,76 @@ function SearchContent() {
     queryFn: () => apiGet<any[]>("/quartiers"),
   });
 
-  const params = new URLSearchParams();
-  if (categorySlug) params.set("categorySlug", categorySlug);
-  if (quartierId) params.set("quartierId", quartierId);
-  params.set("page", page.toString());
-  params.set("limit", "20");
+  // Construire l'URL de l'API selon le mode
+  const buildApiUrl = () => {
+    if (nearMe && coords) {
+      const params = new URLSearchParams();
+      params.set("lat", coords.latitude.toString());
+      params.set("lng", coords.longitude.toString());
+      params.set("radius", "15");
+      if (categorySlug) params.set("categorySlug", categorySlug);
+      params.set("page", page.toString());
+      params.set("limit", "20");
+      return `/providers/nearby?${params.toString()}`;
+    }
+
+    const params = new URLSearchParams();
+    if (queryText) params.set("q", queryText);
+    if (categorySlug) params.set("categorySlug", categorySlug);
+    if (quartierId) params.set("quartierId", quartierId);
+    if (coords) {
+      params.set("lat", coords.latitude.toString());
+      params.set("lng", coords.longitude.toString());
+    }
+    params.set("page", page.toString());
+    params.set("limit", "20");
+    return `/providers?${params.toString()}`;
+  };
 
   const { data, isLoading } = useQuery({
-    queryKey: ["providers", categorySlug, quartierId, page],
-    queryFn: () => apiGet<any>(`/providers?${params.toString()}`),
+    queryKey: ["providers", nearMe, coords?.latitude, coords?.longitude, queryText, categorySlug, quartierId, page],
+    queryFn: () => apiGet<any>(buildApiUrl()),
   });
 
-  const hasFilters = categorySlug || quartierId;
+  const hasFilters = queryText || categorySlug || quartierId || nearMe;
   const activeCategoryName = categorySlug ? categories.find((c: any) => c.slug === categorySlug)?.name : null;
   const activeQuartierName = quartierId ? quartiers.find((q: any) => q.id === quartierId)?.name : null;
 
   const clearFilters = () => {
+    setNearMe(false);
     router.push("/search");
   };
 
-  const removeFilter = (type: "category" | "quartier") => {
+  const removeFilter = (type: "category" | "quartier" | "nearMe") => {
+    if (type === "nearMe") {
+      setNearMe(false);
+      return;
+    }
     const p = new URLSearchParams();
     if (type !== "category" && categorySlug) p.set("category", categorySlug);
     if (type !== "quartier" && quartierId) p.set("quartier", quartierId);
     router.push(`/search?${p.toString()}`);
   };
+
+  const handleNearMe = () => {
+    if (nearMe) {
+      setNearMe(false);
+      return;
+    }
+    if (coords) {
+      setNearMe(true);
+    } else {
+      requestLocation();
+      setNearMe(true);
+    }
+  };
+
+  // Quand les coordonnées arrivent et que nearMe est activé, on re-render automatiquement
+  useEffect(() => {
+    if (nearMe && !coords && !geoLoading) {
+      requestLocation();
+    }
+  }, [nearMe, coords, geoLoading, requestLocation]);
 
   return (
     <>
@@ -71,15 +120,58 @@ function SearchContent() {
           <SearchBar
             categories={categories}
             quartiers={quartiers}
+            defaultQuery={queryText}
             defaultCategory={categorySlug}
             defaultQuartier={quartierId}
+            showNearMe={false}
           />
         </div>
+
+        {/* Bouton "Près de moi" */}
+        {geoSupported && (
+          <div className="mb-4">
+            <button
+              onClick={handleNearMe}
+              disabled={geoLoading}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all ${
+                nearMe
+                  ? "bg-musso-pink text-white shadow-md"
+                  : "bg-white border-2 border-musso-pink text-musso-pink hover:bg-musso-pink-light"
+              } ${geoLoading ? "opacity-70" : ""}`}
+            >
+              {geoLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Navigation className="w-4 h-4" />
+              )}
+              {geoLoading ? "Localisation..." : nearMe ? "Près de moi ✓" : "Près de moi"}
+            </button>
+            {geoError && (
+              <p className="text-xs text-red-500 mt-1.5 ml-1">{geoError}</p>
+            )}
+          </div>
+        )}
 
         {/* Filtres actifs */}
         {hasFilters && (
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <SlidersHorizontal className="w-4 h-4 text-gray-400" />
+            {queryText && (
+              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                &quot;{queryText}&quot;
+                <button onClick={() => { const p = new URLSearchParams(); if (categorySlug) p.set("category", categorySlug); if (quartierId) p.set("quartier", quartierId); router.push(`/search?${p.toString()}`); }} className="hover:text-gray-500">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {nearMe && (
+              <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                <Navigation className="w-3 h-3" /> Près de moi
+                <button onClick={() => removeFilter("nearMe")} className="hover:text-green-500">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
             {activeCategoryName && (
               <span className="inline-flex items-center gap-1 bg-musso-pink-light text-musso-pink text-xs font-medium px-2.5 py-1 rounded-full">
                 {activeCategoryName}
@@ -105,6 +197,7 @@ function SearchContent() {
             <Users className="w-4 h-4" />
             <span>
               <strong className="text-gray-700">{data.total || data.providers?.length || 0}</strong> prestataire{(data.total || data.providers?.length || 0) > 1 ? "s" : ""} trouvée{(data.total || data.providers?.length || 0) > 1 ? "s" : ""}
+              {nearMe && " près de vous"}
             </span>
           </div>
         )}

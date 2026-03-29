@@ -96,8 +96,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1.5">Nom complet</label>
+            <label htmlFor="register-name" className="block text-sm font-medium mb-1.5">Nom complet</label>
             <input
+              id="register-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -109,9 +110,10 @@ export default function RegisterPage() {
           <PhoneInput value={phone} onChange={setPhone} error="" />
 
           <div>
-            <label className="block text-sm font-medium mb-1.5">Mot de passe</label>
+            <label htmlFor="register-password" className="block text-sm font-medium mb-1.5">Mot de passe</label>
             <div className="relative">
               <input
+                id="register-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -121,6 +123,7 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label="Afficher/masquer le mot de passe"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -129,8 +132,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1.5">Confirmer le mot de passe</label>
+            <label htmlFor="register-confirm-password" className="block text-sm font-medium mb-1.5">Confirmer le mot de passe</label>
             <input
+              id="register-confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}

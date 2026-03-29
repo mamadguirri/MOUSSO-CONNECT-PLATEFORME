@@ -9,12 +9,13 @@ interface PhoneInputProps {
 export function PhoneInput({ value, onChange, error }: PhoneInputProps) {
   return (
     <div>
-      <label className="block text-sm font-medium mb-1.5">Numéro de téléphone</label>
+      <label htmlFor="phone-input" className="block text-sm font-medium mb-1.5">Numéro de téléphone</label>
       <div className="flex">
         <span className="inline-flex items-center px-4 h-12 border-2 border-r-0 border-gray-200 rounded-l-btn bg-gray-50 text-sm font-medium text-gray-600">
           +223
         </span>
         <input
+          id="phone-input"
           type="tel"
           inputMode="numeric"
           placeholder="XX XX XX XX"

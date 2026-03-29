@@ -8,24 +8,34 @@ interface PhotoUploadProps {
   onFilesChange: (files: File[]) => void;
   existingPhotos?: { id: string; url: string }[];
   onRemoveExisting?: (id: string) => void;
+  uploading?: boolean;
 }
 
-export function PhotoUpload({ maxFiles = 5, onFilesChange, existingPhotos = [], onRemoveExisting }: PhotoUploadProps) {
+export function PhotoUpload({ maxFiles = 5, onFilesChange, existingPhotos = [], onRemoveExisting, uploading }: PhotoUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previews, setPreviews] = useState<{ file: File; url: string }[]>([]);
+  const prevUploadingRef = useRef(uploading);
+
+  // Vider les previews après un upload réussi
+  if (prevUploadingRef.current && !uploading) {
+    previews.forEach((p) => URL.revokeObjectURL(p.url));
+    if (previews.length > 0) setPreviews([]);
+  }
+  prevUploadingRef.current = uploading;
 
   const handleFiles = useCallback(
     (newFiles: FileList | null) => {
       if (!newFiles) return;
       const remaining = maxFiles - existingPhotos.length - previews.length;
       const accepted = Array.from(newFiles).slice(0, remaining);
+      if (accepted.length === 0) return;
       const newPreviews = accepted.map((file) => ({
         file,
         url: URL.createObjectURL(file),
       }));
-      const updated = [...previews, ...newPreviews];
-      setPreviews(updated);
-      onFilesChange(updated.map((p) => p.file));
+      // On envoie directement les nouveaux fichiers, pas les anciens previews
+      setPreviews(newPreviews);
+      onFilesChange(accepted);
     },
     [maxFiles, existingPhotos.length, previews, onFilesChange]
   );
@@ -34,7 +44,9 @@ export function PhotoUpload({ maxFiles = 5, onFilesChange, existingPhotos = [], 
     URL.revokeObjectURL(previews[index].url);
     const updated = previews.filter((_, i) => i !== index);
     setPreviews(updated);
-    onFilesChange(updated.map((p) => p.file));
+    if (updated.length > 0) {
+      onFilesChange(updated.map((p) => p.file));
+    }
   };
 
   const totalPhotos = existingPhotos.length + previews.length;

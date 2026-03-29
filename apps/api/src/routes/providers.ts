@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import {
   listProviders,
+  listProvidersNearby,
   getProvider,
   createProvider,
   updateProvider,
@@ -15,6 +16,7 @@ import { upload } from '../middlewares/upload';
 export const providerRouter = Router();
 
 // Routes publiques
+providerRouter.get('/nearby', listProvidersNearby);
 providerRouter.get('/', listProviders);
 providerRouter.get('/:id', getProvider);
 

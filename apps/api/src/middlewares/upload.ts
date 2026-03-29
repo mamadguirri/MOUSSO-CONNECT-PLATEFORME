@@ -10,9 +10,11 @@ const DOC_MIMES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ];
 
-const ALL_ALLOWED_MIMES = [...IMAGE_MIMES, ...AUDIO_MIMES, ...DOC_MIMES];
+const VIDEO_MIMES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm', 'video/x-matroska'];
 
-const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+const ALL_ALLOWED_MIMES = [...IMAGE_MIMES, ...AUDIO_MIMES, ...DOC_MIMES, ...VIDEO_MIMES];
+
+const MAX_SIZE = 50 * 1024 * 1024; // 50MB (pour les vidéos)
 
 const storage = multer.memoryStorage();
 
